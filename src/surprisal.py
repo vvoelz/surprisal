@@ -176,15 +176,15 @@ class SurprisalAnalysis:
         elif (normalize.lower() == "none")|(normalize == None):
             return self._compute_unnormalized_si(c_row=c_row)
 
-    def _compute_si_var_bootstrap(self, c_row, state_id, n_bootstraps=100, normalize="counts"):
+    def _compute_si_var_bootstrap(self, c_row, state_id, n_bootstraps=100, normalize="counts", prior_counts=0.0):
 
         c_comb, totals, total_comb = self._prepare_c_row(c_row)
 
         # use MLE probs of multinomal distribution (pseudocount of 1/2 according to Jeffrey's prior)
         if normalize == "counts":
-            p_list = [counts2probs(c+0.5) for c in c_row]
+            p_list = [counts2probs(c+prior_counts) for c in c_row]
         elif normalize == "mle":
-            p_list = [counts2probs(c+0.5) for c in c_row]
+            p_list = [counts2probs(c+prior_counts) for c in c_row]
 
         # Draw bootstrapped counts from a multinomial distribution
         si = np.zeros(n_bootstraps)
@@ -203,7 +203,8 @@ class SurprisalAnalysis:
         c_comb, totals, total_comb = self._prepare_c_row(c_row)
 
         V = []
-        m = self.matrix_shape[0]
+        #m = self.matrix_shape[0]
+        m = len(c_row[0])
         for i in range(len(c_row)):
             V.append(cov_multinomial_counts(c_row[i]))
 
@@ -258,6 +259,7 @@ class SurprisalAnalysis:
     def estimate_s_weights(self, matrices, normalize="counts"):
         #Should work for both sparse and dense matrix type
         self.surprisal_weights_ = self._compute_s_weights(matrices, normalize)
+
 
     def calculate_surprisals(self, *matrices):
 
