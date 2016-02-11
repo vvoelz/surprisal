@@ -1,7 +1,7 @@
 import os, sys
-sys.path.append('../../src')
+sys.path.append('../src')
 
-from surprisal import SurprisalAnalysis
+from Surprisal import *
 import numpy as np
 
 var_analytic = []
@@ -10,17 +10,14 @@ var_bootstrap = []
 var_analytic_unnormalized = []
 var_bootstrap_unnormalized = []
 
-sa = SurprisalAnalysis(var_method = "analytical")
-sb = SurprisalAnalysis(var_method = "bootstrap") 
-
 print '#trial\tncounts\tnstates\tvar_analytic\tvar_bootstrap'
 for trial in range(100):
 
-    # randomly choose a number of counts between 1 and 100000  
-    ncounts = int(10.0**(4*np.random.random() + 1))
+    # randomly choose a number of counts between 1 and 1000000  
+    ncounts = int(10.0**(5*np.random.random() + 1))
 
-    # randomly choose a number of multinomial events between 2 and 100
-    nstates = 2 + int(10.0**(2.0*np.random.random())*1.0) 
+    # randomly choose a number of multinomial events between 2 and 200
+    nstates = 2 + int(10.0**(2.0*np.random.random())*2.0) 
 
     # make up some fake probabilities of each event for system 1 and 2
     p1 = np.random.random(nstates) 
@@ -34,13 +31,9 @@ for trial in range(100):
     c1 = np.random.multinomial(ncounts, p1)
     c2 = np.random.multinomial(ncounts, p2)
 
-    print 'c1', c1, 'c2', c2 
     # compute the variance of the surprisal using bootstrap
-    #print 's._compute_si(c1, c2)', s._compute_si([c1, c2])
-
-
-    var_analytic.append( sa._compute_si_var_analytical([c1, c2], None) )
-    var_bootstrap.append( sb._compute_si_var_bootstrap([c1, c2], state_id=None, n_bootstraps=5000)  )
+    var_analytic.append( surprisal_var(c1, c2, bootstrap=False) )
+    var_bootstrap.append( surprisal_var(c1, c2, bootstrap=True, n_bootstraps=10000) )
 
     # var_analytic_unnormalized.append( surprisal_var(c1, c2, bootstrap=False, normalize=False) )
     # var_bootstrap_unnormalized.append( surprisal_var(c1, c2, bootstrap=True, n_bootstraps=1000, normalize=False) )
@@ -60,8 +53,8 @@ plt.plot(var_analytic, var_bootstrap,'.')
 plt.plot([1e-9, 1.], [1e-9, 1.,], 'k-')
 plt.xscale('log')
 plt.yscale('log')
-plt.xlim(1e-9, 1.)
-plt.ylim(1e-9, 1.)
+plt.xlim(1e-9, 1e-2)
+plt.ylim(1e-9, 1e-2)
 plt.xlabel('$\sigma_s^2$ analytical estimate')
 plt.ylabel('$\sigma_s^2$ bootstrap estimate')
 plt.tight_layout()
