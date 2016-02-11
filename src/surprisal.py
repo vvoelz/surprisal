@@ -8,10 +8,10 @@ from msmbuilder import version
 
 msmb_version = version.version
 
-if msmb_version == '2.8.2':
+if msmb_version[0] == '2':   #.8.2'
     from msmbuilder.MSMLib import estimate_transition_matrix
     from msmbuilder.msm_analysis import get_eigenvectors
-elif msmb_version == '3.2.0':
+else:    #  msmb_version == '3.2.0':
     from msmbuilder.msm import MarkovStateModel
 
 
@@ -27,11 +27,13 @@ def check_matrices_shape(matrices):
     return s
 
 def estimate_mle_populations(matrix):
-    if msmb_version == '2.8.2':
+
+    #if msmb_version == '2.8.2':
+    if msmb_version[0] == '2':
         t_matrix = estimate_transition_matrix(matrix)
         populations = get_eigenvectors(t_matrix, 1, **kwargs)[1][:, 0]
         return populations
-    elif msmb_version == '3.2.0':
+    else: # msmb_version == '3.2.0':
         obj = MarkovStateModel()
         populations = obj._fit_mle(matrix)[1]
         return populations
@@ -138,7 +140,6 @@ class SurprisalAnalysis:
     def _compute_mle_normalized_si(self, c_row, state_id):
 
         c_comb, totals, total_comb = self._prepare_c_row(c_row)
-
         si = H(c_comb)
         for i in range(len(c_row)):
             si -= self.state_populations_mle_[i,state_id]/self.state_populations_mle_.sum(axis=0)[state_id]*H(c_row[i])
@@ -190,7 +191,7 @@ class SurprisalAnalysis:
         si = np.zeros(n_bootstraps)
         resampled_all = []
         for i in range(len(c_row)):
-            resampled_all.append(np.random.multinomial(totals[i], p_list[i], size=n_bootstraps))
+            resampled_all.append(np.random.multinomial(totals[i], p_list[i], size=n_bootstraps).astype(float))
         for trial in range(n_bootstraps):
             si[trial] = self._compute_si([resampled[trial,:] for resampled in resampled_all],
                                          state_id,
