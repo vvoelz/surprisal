@@ -13,11 +13,6 @@ from scipy.sparse import issparse
 T = io.mmread('./gb1-tProb.mtx')
 nstates = 150
 
-# get the equilibirium populations, pi_i
-from msmbuilder.msm_analysis import get_eigenvectors
-pi = get_eigenvectors(T, 1)[1][:, 0]
-print 'pi', pi, 'pi.sum()', pi.sum()
-
 # compile the probabilities of all possible Markov jumps
 i_indices, j_indices, values = scipy.sparse.find(T)
 jumps = {}  # {i: [jump_indices, jump_probs]
@@ -32,17 +27,6 @@ for i in range(nstates):
     print '\tjump_probs.sum()', jump_probs.sum()
 
 
-# Initialize two count matrices, filled with pseudocounts  nprior*pi_i*T_ij
-nprior = 1000
-C1 = np.zeros( (nstates,nstates), dtype=float )
-C2 = np.zeros( (nstates,nstates), dtype=float )
-for i in range(len(i_indices)):
-    C1[i_indices[i], j_indices[i]] = nprior*pi[i_indices[i]]*values[i]
-    C2[i_indices[i], j_indices[i]] = nprior*pi[i_indices[i]]*values[i]
-
-
-
-
 
 from matplotlib import pyplot as plt
 plt.figure( figsize=(8, 8) )
@@ -53,13 +37,13 @@ nsamples = [10,100,1000,10000]
 for n in nsamples:
 
     panel += 1
-    # Initialize two count matrices, filled with pseudocounts  nprior*pi_i*T_ij
+    # Initialize two count matrices, filled with pseudocounts 0.01 for connected states
     nprior = 150
     C1 = np.zeros( (nstates,nstates), dtype=float )
     C2 = np.zeros( (nstates,nstates), dtype=float )
     for i in range(len(i_indices)):
         C1[i_indices[i], j_indices[i]] = 0.01
-        C2[i_indices[i], j_indices[i]] = 0.01  # nprior*pi[i_indices[i]]*values[i]
+        C2[i_indices[i], j_indices[i]] = 0.01  
 
 
     var_analytic = []
@@ -68,12 +52,9 @@ for n in nsamples:
     var_analytic_nzcounts = []
     var_bootstrap_nzcounts = []
 
-    sa = SurprisalAnalysis(var_method = "analytical")
-    sb = SurprisalAnalysis(var_method = "bootstrap")
+    sa = SurprisalAnalysis([C1,C2])
 
-
-
-    print '#trial\tncounts\tnstates\tvar_analytic\tvar_bootstrap'
+    print '#trial\tnsamples\tcounts\tvar_analytic\tvar_bootstrap'
 
     # perform a round of uniform sampling
     for i in range(nstates):
@@ -86,31 +67,34 @@ for n in nsamples:
         for j in range(len(sampled2)):
             C2[i, jump_indices[j]] += sampled2[j]
 
-        print 'State', i
-        print '\tC1 row', C1[i,0:10], '...'
-        print '\tC2 row', C2[i,0:10], '...'
+        print i, n, 
+        print 'C1 =', C1[i,0:5], '...',
+        print 'C2 =', C2[i,0:5], '...',
 
         # this version considers transitions with zero counts, which bootstrap creates a prior for
-        var_analytic.append( sa._compute_si_var_analytical([C1[i,:], C2[i,:]], None) )
-        var_bootstrap.append( sb._compute_si_var_bootstrap([C1[i,:], C2[i,:]], state_id=None, n_bootstraps=10000)  )
+        var_analytic.append( sa.compute_si_var_analytical([C1[i,:], C2[i,:]]) )
+        var_bootstrap.append( sa.compute_si_var_bootstrap([C1[i,:], C2[i,:]], n_bootstraps=1000)  )
 
         # this version only sends transitions with nonzero counts
-        var_analytic_nzcounts.append( sa._compute_si_var_analytical([sampled1, sampled2], None) )
-        var_bootstrap_nzcounts.append( sb._compute_si_var_bootstrap([sampled1, sampled2], state_id=None, n_bootstraps=10000)  )
+        var_analytic_nzcounts.append( sa.compute_si_var_analytical([sampled1, sampled2]) )
+        var_bootstrap_nzcounts.append( sa.compute_si_var_bootstrap([sampled1, sampled2], n_bootstraps=1000)  )
+        ## convert to arrays
+        print var_analytic[-1], var_bootstrap[-1]  #, var_analytic_unnormalized[-1], var_bootstrap_unnormalized[-1]
 
+    ## convert to arrays
+    var_analytic, var_bootstrap = np.array(var_analytic), np.array(var_bootstrap)
+    var_analytic_nzcounts, var_bootstrap_nzcounts = np.array(var_analytic_nzcounts), np.array(var_bootstrap_nzcounts)
+    Ind = (var_analytic > 0.)*(var_bootstrap > 0.)      
+    Ind_nz = (var_analytic_nzcounts > 0.)*(var_bootstrap_nzcounts > 0.)
 
-
-        print i, n, var_analytic[-1], var_bootstrap[-1]  #, var_analytic_unnormalized[-1], var_bootstrap_unnormalized[-1]
-
-      
-    print 'Corrcoef of log(var) =', np.corrcoef(np.log(var_analytic), np.log(var_bootstrap))
-    print 'Average std(log10(var))  =', np.mean( (np.log10(var_analytic)-np.log10(var_bootstrap))**2.0 )**0.5
+    print 'Corrcoef of log(var) =', np.corrcoef(np.log(var_analytic[Ind]), np.log(var_bootstrap[Ind]))
+    print 'Average std(log10(var))  =', np.mean( (np.log10(var_analytic[Ind])-np.log10(var_bootstrap[Ind]))**2.0 )**0.5
 
 
     plt.subplot(2,2,panel)
     plt.title('%d samples'%n)
-    plt.plot(var_analytic, var_bootstrap,'.')
-    plt.plot(var_analytic_nzcounts, var_bootstrap_nzcounts,'r.')
+    plt.plot(var_analytic[Ind], var_bootstrap[Ind],'.')
+    plt.plot(var_analytic_nzcounts[Ind_nz], var_bootstrap_nzcounts[Ind_nz],'r.')
     plt.legend(['full count row', 'nonzero counts only'], fontsize=8, loc='best')
 
     plt.plot([1e-9, 1.], [1e-9, 1.,], 'k-')
@@ -124,6 +108,6 @@ for n in nsamples:
 
 
 #plt.show()
-plt.savefig('surprisal_analytical_GB1.pdf')
-
-
+outfile = 'surprisal_analytical_GB1.pdf'
+plt.savefig(outfile)
+print 'Wrote:', outfile
