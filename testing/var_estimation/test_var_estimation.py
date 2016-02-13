@@ -10,8 +10,10 @@ var_bootstrap = []
 var_analytic_unnormalized = []
 var_bootstrap_unnormalized = []
 
-sa = SurprisalAnalysis(var_method = "analytical")
-sb = SurprisalAnalysis(var_method = "bootstrap") 
+C1 = np.random.random( (10,10))
+C2 = np.random.random( (10,10))
+
+sa = SurprisalAnalysis([C1,C2])
 
 print '#trial\tncounts\tnstates\tvar_analytic\tvar_bootstrap'
 for trial in range(100):
@@ -39,8 +41,8 @@ for trial in range(100):
     #print 's._compute_si(c1, c2)', s._compute_si([c1, c2])
 
 
-    var_analytic.append( sa._compute_si_var_analytical([c1, c2], None) )
-    var_bootstrap.append( sb._compute_si_var_bootstrap([c1, c2], state_id=None, n_bootstraps=5000)  )
+    var_analytic.append( sa.compute_si_var_analytical([c1, c2]) )
+    var_bootstrap.append( sa.compute_si_var_bootstrap([c1, c2], n_bootstraps=5000)  )
 
     # var_analytic_unnormalized.append( surprisal_var(c1, c2, bootstrap=False, normalize=False) )
     # var_bootstrap_unnormalized.append( surprisal_var(c1, c2, bootstrap=True, n_bootstraps=1000, normalize=False) )
