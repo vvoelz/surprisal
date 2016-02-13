@@ -12,7 +12,11 @@ from scipy.sparse import issparse
 ###### Functions #######
 
 def estimate_pi_i(C, pi_i = None, ftol=1e-12, maxiters=100000):
-    """Use the self-consistent TRAM estimator of Noe et al to reversibly estimate the equilibrium distribution.
+    """
+    Use the self-consistent TRAM estimator of Noe et al to reversibly estimate the equilibrium distribution.
+
+    	pi_i = \sum_j  (C_ij + C_ji)/(C_i/pi_i^(k) + C_j/pi_j)
+
     Iteration will continue until either the maximum number is reached, or the reduced free energies
     reach a tolerance threshold
 
@@ -23,7 +27,8 @@ def estimate_pi_i(C, pi_i = None, ftol=1e-12, maxiters=100000):
     Parameters
     ---------
     pi_i       - an array of initial guesses for the equil distribution
-
+    ftol       - tolerance of the maximum difference in log-populations (free energies)
+    maxiters   - mamimum number of self-consistent iterations
 
     Returns
     -------
@@ -41,27 +46,17 @@ def estimate_pi_i(C, pi_i = None, ftol=1e-12, maxiters=100000):
     else:
         pi_i = pi_i.astype('float64')
 
-    # helper quanities
-    a = C + C.transpose()
-    #print 'a', a
+    # helper quantity:  matrix of elements a_ij = C_ij + C_ji
+    a = C + C.transpose() 
 
     pi_i_next = np.copy(pi_i)
     for trial in xrange(maxiters):
 
+        # helper quantity: a matrix of elements b_ij = (\sum_j C_ij)/pi_i + (\sum_i C_ij)/pi_j
         x = C_i/pi_i
-        #print 'x', x
         b = np.tile(x.reshape(nstates,1), nstates) + np.tile(x, (nstates,1))
-        #print 'b', b
 
         pi_i_next = (a/b).sum(axis=1)
-        #print 'pi_i_next', pi_i_next
-
-        #for i in range(nstates):
-        #    numerators = a[i,:]
-        #    #numerators = np.array( [(C[i,j] + C[j,i]) for j in range(nstates)] )
-        #    demonimators = b[i,:]
-        #    #denominators = np.array( [(C_i[i]/pi_i[i] + C_i[j]/pi_i[j]) for j in range(nstates)] )
-        #    pi_i_next[i] = np.dot(numerators, 1.0/denominators)
 
         f_i, f_i_next = -np.log(pi_i), -np.log(pi_i_next)
         # compute the absolute change of f_i
@@ -70,7 +65,7 @@ def estimate_pi_i(C, pi_i = None, ftol=1e-12, maxiters=100000):
             print '### estimator iter', trial, 'df', df, 'pi_i.sum()', pi_i.sum() #, 'pi_i_next', pi_i_next
         
         pi_i = np.copy(pi_i_next)
-        pi_i = pi_i/pi_i.sum()
+        pi_i = pi_i/pi_i.sum()  # make sure populations is normalized
      
         if df < ftol:
             return pi_i
@@ -149,6 +144,7 @@ for trial in range(10):
 
       print 'trial', trial, 'samples', trial*nsamples.sum(), 'estimated pi_i', pi_i[0:10], '...'
       plt.plot(true_pi, pi_i, '.', label='%d samples'%(trial*nsamples.sum()))
+
 
 # re-estimate pi_i using MLE
 sampled_T = np.copy(C) 
