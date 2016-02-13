@@ -8,9 +8,6 @@ Last updated:  Augest 5, 2015
 Requirements
 ------------
 
-**msmbuilder** http://www.msmbuilder.org
-Extensible software for building Markov State Models for Biomolecular Conformational Dynamics
-
 **numpy** http://www.numpy.org
 Numerical python
 
@@ -24,8 +21,7 @@ Import this code like any other python module
 
 Example
 ---------------
-There is an example code in the testing folder: testing/test\_surprisal.py
-
+There is an example code in the testing folder 
 COPYRIGHT
 ---------------
 This python package is Copyright (C) 2014 Vincent Voelz <voelz@temple.edu>.
