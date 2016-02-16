@@ -393,8 +393,11 @@ class SurprisalAnalysis:
 
         
 
-    def compute_si(self, c_row, normalized=True, method="counts"):
+    def compute_si(self, c_row, normalized=True):
         """Returns the (normalized) surprisal (Eq. 7, Ref[1]) for a set of a row counts.
+
+            NOTE: This version of compute_si() weighs entropy contributions by the numbers of observed counts.  This
+                  is usually the desired quantity.   (see also compute_si_using_pi() )
 
         Input
         -----
@@ -404,13 +407,6 @@ class SurprisalAnalysis:
         ---------
         normalized  - If True, return the normalized surprisal.  This is what we want in most cases,
                       and what the "surprisal" typically refers to.   Default: True
-
-        methods     - "counts": weighs entropy contributions by the numbers of observed counts.  This
-                      is usually the desired quantity.  Default: "counts".
-
-                    - "pi_i": weights entropy contributions by equilibrium populations.  This can
-                      be useful for estimating JS divergences, for example.  For this to work, 
-                      the populations pi_i for each model k *must* be already stored.
         """
 
         c_comb, totals, total_comb = self.prepare_c_row(c_row)
@@ -419,27 +415,55 @@ class SurprisalAnalysis:
         else:
             si = total_comb*H(c_comb)
 
-        if method == "counts":
-            for k in range(len(c_row)):
-                if normalized:
-                    si -= totals[k]/total_comb*H(c_row[k])
-                else:
-                    si -= totals[k]*H(c_row[k])
-
-        elif method == "pi_i":
-            if self.pi_i[0] == None:
-                raise Exception, 'numpy arrays self.pi_i must be stored when using method "pi_i" '
+         for k in range(len(c_row)):
+            if normalized:
+                si -= totals[k]/total_comb*H(c_row[k])
             else:
-                for k in range(len(c_row)):
-                    if normalized:
-                        total_pi_i = np.array([self.pi_i[k][i] for k in range(self.nmodels)]).sum()
-                        si -= self.pi_i[k][i]/total_pi_i*H(c_row[k])
-                    else:
-                        si -= self.pi_i[k][i]*H(c_row[k])
-        else:
-            raise Exception, 'Unrecognized method.'
+                si -= totals[k]*H(c_row[k])
 
         return si
+
+
+    def compute_si_using_pi(self, c_row, i, normalized=True):
+        """Returns the (normalized) surprisal (Eq. 7, Ref[1]) for a set of a row counts.
+
+            NOTE: This version of compute_si() weighs entropy contributions by equilibrium populations.  This can
+                  be useful for estimating JS divergences, for example.  But usually what you want is
+                  compute_si().    (see above)
+
+                  The populations pi_i for each model k *must* be already stored, and 
+                  the state index i corrresponding to the supplied row counts must be given
+
+        Input
+        -----
+        c_row  - a list (or iterable container) of count rows (1D arrays) for each model
+        i      - the state index corresponding to the given row counts.  The state index is needed
+                 for looking up the equilibirum populations of state i in model k: pi_i[k][i]
+          
+        Paramters
+        ---------
+        normalized  - If True, return the normalized surprisal.  This is what we want in most cases,
+                      and what the "surprisal" typically refers to.   Default: True
+        """
+
+        c_comb, totals, total_comb = self.prepare_c_row(c_row)
+        if normalized:
+            si = H(c_comb)
+        else:
+            si = total_comb*H(c_comb)
+
+
+        if self.pi_i[0] == None:
+            raise Exception, 'numpy arrays self.pi_i must be stored when using method "pi_i" '
+        else:
+            for k in range(len(c_row)):
+                if normalized:
+                    total_pi_i = np.array([self.pi_i[k][i] for k in range(self.nmodels)]).sum()
+                    si -= self.pi_i[k][i]/total_pi_i*H(c_row[k])
+                else:
+                    si -= self.pi_i[k][i]*H(c_row[k])
+        return si
+
 
 
     def compute_si_var_bootstrap(self, c_row, n_bootstraps=1000):
